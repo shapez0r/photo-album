@@ -1,4 +1,4 @@
-// Package config loads ihatepdf runtime configuration from environment
+// Package config loads photoalbum runtime configuration from environment
 // variables. Every setting has a sane default so the binary runs with zero
 // configuration on a laptop or home-lab machine.
 package config
@@ -13,12 +13,11 @@ import (
 	"time"
 )
 
-// DefaultAddr is the listen address when IHATEPDF_ADDR is not set. It is
-// :8081 so ihatepdf can run next to eurofish (:8080) on the same machine.
-const DefaultAddr = ":8081"
+// DefaultAddr is the listen address when PHOTOALBUM_ADDR is not set.
+const DefaultAddr = ":8092"
 
 type Config struct {
-	// Addr is the listen address, e.g. ":8081" (all interfaces, reachable from the LAN).
+	// Addr is the listen address, e.g. ":8092" (all interfaces, reachable from the LAN).
 	Addr string
 	// DataDir holds the SQLite database when the sqlite driver is used.
 	DataDir string
@@ -42,78 +41,78 @@ type Config struct {
 	ProxyHeader string
 	// LogRequests enables per-request access logging.
 	LogRequests bool
-	// MaxFileBytes is the largest PDF that can be saved to "My files".
+	// MaxFileBytes is the largest photo that can be uploaded.
 	MaxFileBytes int64
-	// QuotaBytes is the total size of "My files" per user (0 = unlimited).
+	// QuotaBytes is the total size of the album per user (0 = unlimited).
 	QuotaBytes int64
 }
 
 func Load() (*Config, error) {
 	c := &Config{
-		Addr:        env("IHATEPDF_ADDR", DefaultAddr),
-		DataDir:     env("IHATEPDF_DATA_DIR", "./data"),
-		DBDriver:    strings.ToLower(env("IHATEPDF_DB_DRIVER", "sqlite")),
-		CacheURL:    env("IHATEPDF_CACHE_URL", "memory"),
-		ProxyHeader: env("IHATEPDF_PROXY_HEADER", ""),
+		Addr:        env("PHOTOALBUM_ADDR", DefaultAddr),
+		DataDir:     env("PHOTOALBUM_DATA_DIR", "./data"),
+		DBDriver:    strings.ToLower(env("PHOTOALBUM_DB_DRIVER", "sqlite")),
+		CacheURL:    env("PHOTOALBUM_CACHE_URL", "memory"),
+		ProxyHeader: env("PHOTOALBUM_PROXY_HEADER", ""),
 	}
 	var err error
-	if c.SessionTTL, err = time.ParseDuration(env("IHATEPDF_SESSION_TTL", "720h")); err != nil {
-		return nil, fmt.Errorf("IHATEPDF_SESSION_TTL: %w", err)
+	if c.SessionTTL, err = time.ParseDuration(env("PHOTOALBUM_SESSION_TTL", "720h")); err != nil {
+		return nil, fmt.Errorf("PHOTOALBUM_SESSION_TTL: %w", err)
 	}
-	if c.CookieSecure, err = envBool("IHATEPDF_COOKIE_SECURE", false); err != nil {
+	if c.CookieSecure, err = envBool("PHOTOALBUM_COOKIE_SECURE", false); err != nil {
 		return nil, err
 	}
-	if c.AllowSignup, err = envBool("IHATEPDF_ALLOW_SIGNUP", true); err != nil {
+	if c.AllowSignup, err = envBool("PHOTOALBUM_ALLOW_SIGNUP", true); err != nil {
 		return nil, err
 	}
-	if c.LogRequests, err = envBool("IHATEPDF_LOG_REQUESTS", true); err != nil {
+	if c.LogRequests, err = envBool("PHOTOALBUM_LOG_REQUESTS", true); err != nil {
 		return nil, err
 	}
-	maxMB, err := envInt("IHATEPDF_MAX_FILE_MB", 50)
+	maxMB, err := envInt("PHOTOALBUM_MAX_FILE_MB", 15)
 	if err != nil {
 		return nil, err
 	}
 	if maxMB < 1 || maxMB > 1024 {
-		return nil, fmt.Errorf("IHATEPDF_MAX_FILE_MB must be between 1 and 1024")
+		return nil, fmt.Errorf("PHOTOALBUM_MAX_FILE_MB must be between 1 and 1024")
 	}
 	c.MaxFileBytes = int64(maxMB) << 20
-	quotaMB, err := envInt("IHATEPDF_QUOTA_MB", 2048)
+	quotaMB, err := envInt("PHOTOALBUM_QUOTA_MB", 2048)
 	if err != nil {
 		return nil, err
 	}
 	if quotaMB < 0 {
-		return nil, fmt.Errorf("IHATEPDF_QUOTA_MB must not be negative")
+		return nil, fmt.Errorf("PHOTOALBUM_QUOTA_MB must not be negative")
 	}
 	c.QuotaBytes = int64(quotaMB) << 20
-	for _, raw := range strings.Split(env("IHATEPDF_SIGNUP_CIDRS", ""), ",") {
+	for _, raw := range strings.Split(env("PHOTOALBUM_SIGNUP_CIDRS", ""), ",") {
 		raw = strings.TrimSpace(raw)
 		if raw == "" {
 			continue
 		}
 		_, n, err := net.ParseCIDR(raw)
 		if err != nil {
-			return nil, fmt.Errorf("IHATEPDF_SIGNUP_CIDRS: %w", err)
+			return nil, fmt.Errorf("PHOTOALBUM_SIGNUP_CIDRS: %w", err)
 		}
 		c.SignupCIDRs = append(c.SignupCIDRs, n)
 	}
 
-	c.DBDSN = env("IHATEPDF_DB_DSN", "")
+	c.DBDSN = env("PHOTOALBUM_DB_DSN", "")
 	switch c.DBDriver {
 	case "sqlite", "sqlite3":
 		c.DBDriver = "sqlite"
 		if c.DBDSN == "" {
-			c.DBDSN = "file:" + filepath.Join(c.DataDir, "ihatepdf.db")
+			c.DBDSN = "file:" + filepath.Join(c.DataDir, "photoalbum.db")
 		}
 	case "mysql", "mariadb":
 		c.DBDriver = "mysql"
 		if c.DBDSN == "" {
-			return nil, fmt.Errorf("IHATEPDF_DB_DSN is required for the %s driver", c.DBDriver)
+			return nil, fmt.Errorf("PHOTOALBUM_DB_DSN is required for the %s driver", c.DBDriver)
 		}
 	default:
-		return nil, fmt.Errorf("IHATEPDF_DB_DRIVER: unsupported driver %q (use sqlite or mariadb)", c.DBDriver)
+		return nil, fmt.Errorf("PHOTOALBUM_DB_DRIVER: unsupported driver %q (use sqlite or mariadb)", c.DBDriver)
 	}
 	if c.SessionTTL < time.Hour {
-		return nil, fmt.Errorf("IHATEPDF_SESSION_TTL must be at least 1h")
+		return nil, fmt.Errorf("PHOTOALBUM_SESSION_TTL must be at least 1h")
 	}
 	return c, nil
 }

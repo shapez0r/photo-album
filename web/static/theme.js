@@ -1,20 +1,17 @@
-// ihatepdf colour themes. Loaded synchronously in <head> (before the page is
+// photoalbum colour themes. Loaded synchronously in <head> (before the page is
 // drawn) so a chosen theme is applied without a flash of the default colours.
 // The choice is remembered in this browser (localStorage).
 (() => {
   "use strict";
   const THEMES = [
     { id: "auto", label: "System (light/dark)", group: "" },
-    { id: "cyber-light", label: "Cyber light", group: "Light" },
-    { id: "paper", label: "Paper", group: "Light" },
-    { id: "pink", label: "Pink", group: "Light" },
-    { id: "lavender", label: "Lavender", group: "Light" },
-    { id: "cyber-night", label: "Cyber night", group: "Dark" },
-    { id: "terminal", label: "Terminal", group: "Dark" },
-    { id: "purple", label: "Purple", group: "Dark" },
-    { id: "rose-night", label: "Rose night", group: "Dark" },
+    { id: "blush", label: "Blush", group: "Light" },
+    { id: "sage", label: "Sage", group: "Light" },
+    { id: "oat", label: "Oat milk", group: "Light" },
+    { id: "dusk", label: "Dusk", group: "Dark" },
+    { id: "mocha", label: "Mocha", group: "Dark" },
   ];
-  const KEY = "ihatepdf.theme";
+  const KEY = "photoalbum.theme";
   const valid = (id) => THEMES.some((t) => t.id === id);
 
   function get() {
@@ -38,5 +35,5 @@
   }
 
   apply(get());
-  window.IhatepdfTheme = { list: THEMES, get, set };
+  window.PhotoalbumTheme = { list: THEMES, get, set };
 })();

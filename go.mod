@@ -1,4 +1,4 @@
-module ihatepdf
+module photoalbum
 
 go 1.23
 

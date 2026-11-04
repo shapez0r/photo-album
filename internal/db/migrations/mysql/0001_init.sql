@@ -1,4 +1,4 @@
--- ihatepdf initial schema (MariaDB / MySQL)
+-- photoalbum initial schema (MariaDB / MySQL)
 -- Timestamps are unix seconds. IDs are application-generated UUIDs.
 
 CREATE TABLE users (
@@ -31,19 +31,20 @@ CREATE TABLE sessions (
     CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- "My files": PDFs saved by a user (merged, split, signed, filled in, ...).
--- The bytes live in the database so every replica can serve every file.
--- Needs max_allowed_packet above the largest file (see compose.scale.yaml).
-CREATE TABLE documents (
+-- Album photos. The image bytes live in the database so every replica can
+-- serve every photo. Needs max_allowed_packet above the largest photo.
+CREATE TABLE photos (
     id         VARCHAR(36)  NOT NULL PRIMARY KEY,
     owner_id   VARCHAR(36)  NOT NULL,
-    name       VARCHAR(255) NOT NULL,
+    caption    VARCHAR(500) NOT NULL DEFAULT '',
+    mime       VARCHAR(32)  NOT NULL,
+    width      INT          NOT NULL DEFAULT 0,
+    height     INT          NOT NULL DEFAULT 0,
     size       BIGINT       NOT NULL,
-    pages      INT          NOT NULL DEFAULT 0,
     sha256     VARCHAR(64)  NOT NULL,
     content    LONGBLOB     NOT NULL,
     created_at BIGINT       NOT NULL,
     updated_at BIGINT       NOT NULL,
-    KEY idx_documents_owner (owner_id, updated_at),
-    CONSTRAINT fk_documents_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    KEY idx_photos_owner (owner_id, created_at),
+    CONSTRAINT fk_photos_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

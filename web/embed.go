@@ -1,6 +1,5 @@
-// Package web embeds the browser UI (including the bundled pdf-lib and pdf.js
-// libraries) into the ihatepdf binary so a single executable (or a
-// FROM-scratch container) serves everything.
+// Package web embeds the browser UI into the photoalbum binary so a single
+// executable (or a FROM-scratch container) serves everything.
 package web
 
 import (

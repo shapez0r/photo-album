@@ -1,0 +1,52 @@
+# Kubernetes example for the scaled-out mode. Expects a reachable MariaDB
+# (max_allowed_packet above the largest photo, e.g. 256M) and Valkey (managed
+# services or your own charts) and a Secret holding the DSN:
+#   kubectl create secret generic photoalbum \
+#     --from-literal=db-dsn='photoalbum:PASSWORD@tcp(mariadb:3306)/photoalbum?charset=utf8mb4'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: photoalbum
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: photoalbum }
+  template:
+    metadata:
+      labels: { app: photoalbum }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: photoalbum
+          image: photoalbum:latest
+          ports:
+            - containerPort: 8092
+          env:
+            - { name: PHOTOALBUM_DB_DRIVER, value: mariadb }
+            - name: PHOTOALBUM_DB_DSN
+              valueFrom: { secretKeyRef: { name: photoalbum, key: db-dsn } }
+            - { name: PHOTOALBUM_CACHE_URL, value: "redis://valkey:6379/0" }
+            - { name: PHOTOALBUM_PROXY_HEADER, value: X-Forwarded-For }
+            - { name: PHOTOALBUM_COOKIE_SECURE, value: "true" }
+          readinessProbe:
+            httpGet: { path: /readyz, port: 8092 }
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8092 }
+          resources:
+            requests: { cpu: 50m, memory: 48Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: photoalbum
+spec:
+  selector: { app: photoalbum }
+  ports:
+    - port: 80
+      targetPort: 8092

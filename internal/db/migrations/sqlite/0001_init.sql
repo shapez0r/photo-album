@@ -1,4 +1,4 @@
--- ihatepdf initial schema (SQLite)
+-- photoalbum initial schema (SQLite)
 -- Timestamps are unix seconds. IDs are application-generated UUIDs.
 
 CREATE TABLE users (
@@ -28,17 +28,19 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_user ON sessions(user_id);
 CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 
--- "My files": PDFs saved by a user (merged, split, signed, filled in, ...).
--- The bytes live in the database so every replica can serve every file.
-CREATE TABLE documents (
+-- Album photos. The image bytes live in the database so every replica can
+-- serve every photo.
+CREATE TABLE photos (
     id         VARCHAR(36)  NOT NULL PRIMARY KEY,
     owner_id   VARCHAR(36)  NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name       VARCHAR(255) NOT NULL,
+    caption    VARCHAR(500) NOT NULL DEFAULT '',
+    mime       VARCHAR(32)  NOT NULL,
+    width      INTEGER      NOT NULL DEFAULT 0,
+    height     INTEGER      NOT NULL DEFAULT 0,
     size       BIGINT       NOT NULL,
-    pages      INTEGER      NOT NULL DEFAULT 0,
     sha256     VARCHAR(64)  NOT NULL,
     content    BLOB         NOT NULL,
     created_at BIGINT       NOT NULL,
     updated_at BIGINT       NOT NULL
 );
-CREATE INDEX idx_documents_owner ON documents(owner_id, updated_at);
+CREATE INDEX idx_photos_owner ON photos(owner_id, created_at);

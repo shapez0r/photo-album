@@ -11,8 +11,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"ihatepdf/internal/auth"
-	"ihatepdf/internal/store"
+	"photoalbum/internal/auth"
+	"photoalbum/internal/store"
 )
 
 const sessionCacheTTL = time.Minute

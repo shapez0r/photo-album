@@ -1,12 +1,12 @@
 {
   "boot-source": {
     "kernel_image_path": "vmlinux",
-    "boot_args": "console=ttyS0 reboot=k panic=1 rw init=/ihatepdf ip=172.16.0.3::172.16.0.1:255.255.255.0::eth0:off IHATEPDF_DATA_DIR=/data IHATEPDF_ADDR=:8081"
+    "boot_args": "console=ttyS0 reboot=k panic=1 rw init=/photoalbum ip=172.16.0.3::172.16.0.1:255.255.255.0::eth0:off PHOTOALBUM_DATA_DIR=/data PHOTOALBUM_ADDR=:8092"
   },
   "drives": [
     {
       "drive_id": "rootfs",
-      "path_on_host": "dist/ihatepdf-rootfs.ext4",
+      "path_on_host": "dist/photoalbum-rootfs.ext4",
       "is_root_device": true,
       "is_read_only": false
     }

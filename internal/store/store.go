@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"ihatepdf/internal/db"
+	"photoalbum/internal/db"
 )
 
 var (
@@ -25,13 +25,15 @@ type User struct {
 	CreatedAt    int64  `json:"created_at"`
 }
 
-// Document is a PDF in a user's "My files" (metadata only; the bytes are
-// read separately so that listing never loads file contents).
-type Document struct {
+// Photo is one picture in a user's album (metadata only; the bytes are read
+// separately so that listing never loads image contents).
+type Photo struct {
 	ID        string `json:"id"`
-	Name      string `json:"name"`
+	Caption   string `json:"caption"`
+	Mime      string `json:"mime"`
+	Width     int    `json:"width"`
+	Height    int    `json:"height"`
 	Size      int64  `json:"size"`
-	Pages     int    `json:"pages"`
 	SHA256    string `json:"sha256"`
 	CreatedAt int64  `json:"created_at"`
 	UpdatedAt int64  `json:"updated_at"`
@@ -94,14 +96,14 @@ func (s *Store) UserByID(ctx context.Context, id string) (*User, error) {
 }
 
 // ResetAll erases every account together with its sessions, linked
-// identities and "My files". The schema itself is kept.
+// identities and photos. The schema itself is kept.
 func (s *Store) ResetAll(ctx context.Context) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	for _, table := range []string{"documents", "sessions", "auth_identities", "users"} {
+	for _, table := range []string{"photos", "sessions", "auth_identities", "users"} {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table); err != nil {
 			return err
 		}
@@ -151,120 +153,94 @@ func (s *Store) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	return res.RowsAffected()
 }
 
-// ---------- documents ("My files") ----------
+// ---------- photos ----------
 
-const documentCols = `id, name, size, pages, sha256, created_at, updated_at`
+const photoCols = `id, caption, mime, width, height, size, sha256, created_at, updated_at`
 
-func scanDocument(sc interface{ Scan(...any) error }) (*Document, error) {
-	var d Document
-	if err := sc.Scan(&d.ID, &d.Name, &d.Size, &d.Pages, &d.SHA256, &d.CreatedAt, &d.UpdatedAt); err != nil {
+func scanPhoto(sc interface{ Scan(...any) error }) (*Photo, error) {
+	var p Photo
+	if err := sc.Scan(&p.ID, &p.Caption, &p.Mime, &p.Width, &p.Height, &p.Size, &p.SHA256, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		return nil, err
 	}
-	return &d, nil
+	return &p, nil
 }
 
-// ListDocuments returns the user's files, most recently changed first.
-func (s *Store) ListDocuments(ctx context.Context, ownerID string) ([]Document, error) {
+// ListPhotos returns the user's photos, newest first.
+func (s *Store) ListPhotos(ctx context.Context, ownerID string) ([]Photo, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+documentCols+` FROM documents WHERE owner_id = ? ORDER BY updated_at DESC, id`, ownerID)
+		`SELECT `+photoCols+` FROM photos WHERE owner_id = ? ORDER BY created_at DESC, id`, ownerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []Document{}
+	out := []Photo{}
 	for rows.Next() {
-		d, err := scanDocument(rows)
+		p, err := scanPhoto(rows)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, *d)
+		out = append(out, *p)
 	}
 	return out, rows.Err()
 }
 
-// Document returns the metadata of one of the user's files.
-func (s *Store) Document(ctx context.Context, ownerID, id string) (*Document, error) {
-	d, err := scanDocument(s.db.QueryRowContext(ctx,
-		`SELECT `+documentCols+` FROM documents WHERE id = ? AND owner_id = ?`, id, ownerID))
+// Photo returns the metadata of one of the user's photos.
+func (s *Store) Photo(ctx context.Context, ownerID, id string) (*Photo, error) {
+	p, err := scanPhoto(s.db.QueryRowContext(ctx,
+		`SELECT `+photoCols+` FROM photos WHERE id = ? AND owner_id = ?`, id, ownerID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
-	return d, err
+	return p, err
 }
 
-// DocumentContent returns the metadata and the PDF bytes of one of the user's files.
-func (s *Store) DocumentContent(ctx context.Context, ownerID, id string) (*Document, []byte, error) {
-	var d Document
+// PhotoContent returns the metadata and the image bytes of one of the user's photos.
+func (s *Store) PhotoContent(ctx context.Context, ownerID, id string) (*Photo, []byte, error) {
+	var p Photo
 	var content []byte
 	err := s.db.QueryRowContext(ctx,
-		`SELECT `+documentCols+`, content FROM documents WHERE id = ? AND owner_id = ?`, id, ownerID).
-		Scan(&d.ID, &d.Name, &d.Size, &d.Pages, &d.SHA256, &d.CreatedAt, &d.UpdatedAt, &content)
+		`SELECT `+photoCols+`, content FROM photos WHERE id = ? AND owner_id = ?`, id, ownerID).
+		Scan(&p.ID, &p.Caption, &p.Mime, &p.Width, &p.Height, &p.Size, &p.SHA256, &p.CreatedAt, &p.UpdatedAt, &content)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, nil, err
 	}
-	return &d, content, nil
+	return &p, content, nil
 }
 
-// DocumentByName returns the user's file with exactly this name, if any
-// (the most recently changed one when older duplicates exist).
-func (s *Store) DocumentByName(ctx context.Context, ownerID, name string) (*Document, error) {
-	d, err := scanDocument(s.db.QueryRowContext(ctx,
-		`SELECT `+documentCols+` FROM documents WHERE owner_id = ? AND name = ? ORDER BY updated_at DESC, id LIMIT 1`,
-		ownerID, name))
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
-	}
-	return d, err
-}
-
-// UsedBytes is the total size of the user's files, not counting exceptID
-// (the file being replaced, if any).
-func (s *Store) UsedBytes(ctx context.Context, ownerID, exceptID string) (int64, error) {
+// UsedBytes is the total size of the user's photos.
+func (s *Store) UsedBytes(ctx context.Context, ownerID string) (int64, error) {
 	var used sql.NullInt64
 	err := s.db.QueryRowContext(ctx,
-		`SELECT SUM(size) FROM documents WHERE owner_id = ? AND id <> ?`, ownerID, exceptID).Scan(&used)
+		`SELECT SUM(size) FROM photos WHERE owner_id = ?`, ownerID).Scan(&used)
 	return used.Int64, err
 }
 
-func (s *Store) CreateDocument(ctx context.Context, ownerID string, d *Document, content []byte) error {
+func (s *Store) CreatePhoto(ctx context.Context, ownerID string, p *Photo, content []byte) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO documents (id, owner_id, name, size, pages, sha256, content, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		d.ID, ownerID, d.Name, d.Size, d.Pages, d.SHA256, content, d.CreatedAt, d.UpdatedAt)
+		`INSERT INTO photos (id, owner_id, caption, mime, width, height, size, sha256, content, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, ownerID, p.Caption, p.Mime, p.Width, p.Height, p.Size, p.SHA256, content, p.CreatedAt, p.UpdatedAt)
 	if isDuplicate(err) {
 		return ErrConflict
 	}
 	return err
 }
 
-// ReplaceDocument stores new bytes for an existing file (e.g. after filling
-// it in or signing it). d carries the new size, pages, hash and update time.
-func (s *Store) ReplaceDocument(ctx context.Context, ownerID string, d *Document, content []byte) error {
+func (s *Store) SetCaption(ctx context.Context, ownerID, id, caption string, updatedAt int64) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE documents SET size = ?, pages = ?, sha256 = ?, content = ?, updated_at = ?
-		  WHERE id = ? AND owner_id = ?`,
-		d.Size, d.Pages, d.SHA256, content, d.UpdatedAt, d.ID, ownerID)
-	if err != nil {
-		return err
-	}
-	return s.mustExist(ctx, res, ownerID, d.ID)
-}
-
-func (s *Store) RenameDocument(ctx context.Context, ownerID, id, name string, updatedAt int64) error {
-	res, err := s.db.ExecContext(ctx,
-		`UPDATE documents SET name = ?, updated_at = ? WHERE id = ? AND owner_id = ?`,
-		name, updatedAt, id, ownerID)
+		`UPDATE photos SET caption = ?, updated_at = ? WHERE id = ? AND owner_id = ?`,
+		caption, updatedAt, id, ownerID)
 	if err != nil {
 		return err
 	}
 	return s.mustExist(ctx, res, ownerID, id)
 }
 
-func (s *Store) DeleteDocument(ctx context.Context, ownerID, id string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM documents WHERE id = ? AND owner_id = ?`, id, ownerID)
+func (s *Store) DeletePhoto(ctx context.Context, ownerID, id string) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM photos WHERE id = ? AND owner_id = ?`, id, ownerID)
 	if err != nil {
 		return err
 	}
@@ -282,7 +258,7 @@ func (s *Store) mustExist(ctx context.Context, res sql.Result, ownerID, id strin
 	}
 	var c int
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM documents WHERE id = ? AND owner_id = ?`, id, ownerID).Scan(&c); err != nil {
+		`SELECT COUNT(*) FROM photos WHERE id = ? AND owner_id = ?`, id, ownerID).Scan(&c); err != nil {
 		return err
 	}
 	if c == 0 {

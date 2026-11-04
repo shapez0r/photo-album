@@ -3,9 +3,8 @@
 // cache in front of session lookups), so any number of replicas can run
 // behind a load balancer.
 //
-// The PDF tools themselves (merge, split, organize, sign, fill in, ...) run in
-// the browser with the bundled pdf-lib and pdf.js libraries: documents never
-// have to leave the device unless the user saves them to "My files".
+// Photos are resized in the browser before upload; the server only checks the
+// image format and stores the bytes.
 package server
 
 import (
@@ -26,14 +25,14 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
-	"ihatepdf/internal/cache"
-	"ihatepdf/internal/config"
-	"ihatepdf/internal/db"
-	"ihatepdf/internal/store"
-	"ihatepdf/web"
+	"photoalbum/internal/cache"
+	"photoalbum/internal/config"
+	"photoalbum/internal/db"
+	"photoalbum/internal/store"
+	"photoalbum/web"
 )
 
-const sessionCookie = "ihatepdf_session"
+const sessionCookie = "photoalbum_session"
 
 type Server struct {
 	cfg     *config.Config
@@ -56,9 +55,9 @@ func New(cfg *config.Config, database *db.DB, c cache.Cache, log *slog.Logger, v
 	}
 
 	app := fiber.New(fiber.Config{
-		AppName:               "ihatepdf",
+		AppName:               "photoalbum",
 		DisableStartupMessage: true,
-		ReadTimeout:           2 * time.Minute, // large PDF uploads from phones and tablets
+		ReadTimeout:           2 * time.Minute, // photo uploads from phones on slow Wi-Fi
 		WriteTimeout:          2 * time.Minute,
 		IdleTimeout:           120 * time.Second,
 		BodyLimit:             int(cfg.MaxFileBytes) + 64*1024,
@@ -74,9 +73,9 @@ func New(cfg *config.Config, database *db.DB, c cache.Cache, log *slog.Logger, v
 			Format: "${time} ${ip} ${status} ${method} ${path} ${latency}\n",
 		}))
 	}
-	// PDFs are already compressed internally; do not spend CPU on them.
+	// Photos are already compressed; do not spend CPU on them.
 	app.Use(compress.New(compress.Config{
-		Next: func(c *fiber.Ctx) bool { return strings.HasSuffix(c.Path(), "/file") },
+		Next: func(c *fiber.Ctx) bool { return strings.HasSuffix(c.Path(), "/image") },
 	}))
 	app.Use(securityHeaders)
 
@@ -99,13 +98,12 @@ func New(cfg *config.Config, database *db.DB, c cache.Cache, log *slog.Logger, v
 
 	priv := api.Group("", s.requireAuth)
 	priv.Get("/me", s.me)
-	priv.Get("/documents", s.listDocuments)
-	priv.Post("/documents", requirePDF, s.createDocument)
-	priv.Get("/documents/:id", s.getDocument)
-	priv.Patch("/documents/:id", requireJSON, s.renameDocument)
-	priv.Delete("/documents/:id", requireJSON, s.deleteDocument)
-	priv.Get("/documents/:id/file", s.downloadDocument)
-	priv.Put("/documents/:id/file", requirePDF, s.replaceDocument)
+	priv.Get("/photos", s.listPhotos)
+	priv.Post("/photos", requireImage, s.createPhoto)
+	priv.Get("/photos/:id", s.getPhoto)
+	priv.Patch("/photos/:id", requireJSON, s.captionPhoto)
+	priv.Delete("/photos/:id", requireJSON, s.deletePhoto)
+	priv.Get("/photos/:id/image", s.photoImage)
 
 	api.Use(func(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusNotFound, "unknown API endpoint")
@@ -137,7 +135,7 @@ func New(cfg *config.Config, database *db.DB, c cache.Cache, log *slog.Logger, v
 }
 
 func (s *Server) Listen() error {
-	s.log.Info("ihatepdf listening", "addr", s.cfg.Addr, "db", string(s.db.Dialect), "cache", s.cache.Name(), "version", s.version)
+	s.log.Info("photoalbum listening", "addr", s.cfg.Addr, "db", string(s.db.Dialect), "cache", s.cache.Name(), "version", s.version)
 	return s.app.Listen(s.cfg.Addr)
 }
 
@@ -187,15 +185,14 @@ func versionedIndex(ui fs.FS) []byte {
 
 // ---------- middleware & helpers ----------
 
-// securityHeaders: everything (scripts, the pdf.js worker, fonts, wasm
-// decoders) is served from this server; nothing is loaded from elsewhere.
-// 'wasm-unsafe-eval' only allows WebAssembly (pdf.js image decoders), not eval.
+// securityHeaders: everything is served from this server; nothing is loaded
+// from elsewhere.
 func securityHeaders(c *fiber.Ctx) error {
 	c.Set("X-Content-Type-Options", "nosniff")
 	c.Set("X-Frame-Options", "DENY")
 	c.Set("Referrer-Policy", "same-origin")
 	c.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; "+
-		"script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
+		"script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
 	return c.Next()
 }
 
@@ -220,12 +217,12 @@ func requireJSON(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-// requirePDF accepts raw PDF uploads. A custom header is required: browsers
-// never send one on cross-site requests without a CORS preflight, which this
-// server does not allow (CSRF protection, like requireJSON).
-func requirePDF(c *fiber.Ctx) error {
-	if !strings.HasPrefix(strings.ToLower(c.Get(fiber.HeaderContentType)), "application/pdf") {
-		return fiber.NewError(fiber.StatusUnsupportedMediaType, "content type must be application/pdf")
+// requireImage accepts raw image uploads. A custom header is required:
+// browsers never send one on cross-site requests without a CORS preflight,
+// which this server does not allow (CSRF protection, like requireJSON).
+func requireImage(c *fiber.Ctx) error {
+	if !strings.HasPrefix(strings.ToLower(c.Get(fiber.HeaderContentType)), "image/") {
+		return fiber.NewError(fiber.StatusUnsupportedMediaType, "content type must be an image")
 	}
 	if c.Get("X-Requested-With") == "" {
 		return fiber.NewError(fiber.StatusBadRequest, "missing X-Requested-With header")
