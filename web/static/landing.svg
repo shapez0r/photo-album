@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 150">
+  <!-- three fanned polaroids: sunrise, flower, coffee cup -->
+  <g transform="rotate(-12 60 80)">
+    <rect x="22" y="28" width="76" height="92" rx="6" fill="#fffaf6" stroke="#ead6d0" stroke-width="2"/>
+    <rect x="30" y="36" width="60" height="58" rx="3" fill="#f6dcd4"/>
+    <circle cx="60" cy="74" r="12" fill="#f3b7a6"/>
+    <path d="M30 80h60v14H30z" fill="#e9c2b8"/>
+  </g>
+  <g transform="rotate(10 180 80)">
+    <rect x="142" y="28" width="76" height="92" rx="6" fill="#fffaf6" stroke="#ead6d0" stroke-width="2"/>
+    <rect x="150" y="36" width="60" height="58" rx="3" fill="#efe6d8"/>
+    <path d="M168 62h24v14a12 12 0 0 1-24 0z" fill="#c49a6c"/>
+    <path d="M192 65a6 6 0 0 1 0 10" fill="none" stroke="#c49a6c" stroke-width="3"/>
+    <path d="M175 52q3-5 0-9M184 52q3-5 0-9" fill="none" stroke="#d8c3a8" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <g transform="rotate(-2 120 72)">
+    <rect x="80" y="14" width="80" height="98" rx="6" fill="#fffdfb" stroke="#e7c9c4" stroke-width="2"/>
+    <rect x="88" y="22" width="64" height="62" rx="3" fill="#e1eadd"/>
+    <path d="M120 84V60" stroke="#8fa98a" stroke-width="3"/>
+    <path d="M120 72q-12-2-14-12q12 0 14 12z" fill="#b9c8b4"/>
+    <circle cx="120" cy="48" r="6" fill="#f3d27a"/>
+    <g fill="#d9898f"><circle cx="120" cy="38" r="6"/><circle cx="130" cy="48" r="6"/><circle cx="120" cy="58" r="6"/><circle cx="110" cy="48" r="6"/></g>
+    <circle cx="120" cy="48" r="5" fill="#f3d27a"/>
+  </g>
+  <circle cx="120" cy="14" r="5" fill="#d9898f"/>
+</svg>

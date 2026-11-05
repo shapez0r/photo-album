@@ -113,7 +113,7 @@ label { display: grid; gap: .35rem; font-size: .9rem; color: var(--muted); }
   box-shadow: var(--shadow-hover); display: grid; gap: 1.1rem; text-align: center;
 }
 .auth-card form { display: grid; gap: .9rem; text-align: left; }
-.tabs { display: flex; background: var(--bg-2); border-radius: 999px; padding: 4px; }
+.auth-art { display: block; width: min(240px, 80%); height: auto; margin: -.4rem auto -.2rem; animation: settle .9s cubic-bezier(.2, .7, .2, 1) both; } .tabs { display: flex; background: var(--bg-2); border-radius: 999px; padding: 4px; }
 .tab { flex: 1; border: 0; background: transparent; border-radius: 999px; padding: .55rem; font: inherit; color: var(--muted); cursor: pointer; }
 .tab.active { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
 
