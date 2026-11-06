@@ -108,7 +108,7 @@ a single node. Keep real values (e.g. database passwords) in `.env` or
 | `PHOTOALBUM_LOG_REQUESTS` | `true` | Access log on stdout |
 | `PHOTOALBUM_MAX_FILE_MB` | `15` | Largest photo upload (1–1024) |
 | `PHOTOALBUM_QUOTA_MB` | `2048` | Album size per user (`0` = unlimited) |
-| `PHOTOALBUM_MODEL` | `Claude Sonnet 5.5 by Anthropic` | Model name shown on the album home screen |
+| `PHOTOALBUM_MODEL` | `Claude Sonnet 5.5` | Model name shown on the album home screen |
 
 With MariaDB, `max_allowed_packet` must be larger than `PHOTOALBUM_MAX_FILE_MB`
 (`compose.scale.yaml` sets 256M). Behind nginx, keep `client_max_body_size`

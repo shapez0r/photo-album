@@ -48,7 +48,7 @@ services:
       PHOTOALBUM_COOKIE_SECURE: "${PHOTOALBUM_COOKIE_SECURE:-false}"
       PHOTOALBUM_MAX_FILE_MB: "${PHOTOALBUM_MAX_FILE_MB:-15}"
       PHOTOALBUM_QUOTA_MB: "${PHOTOALBUM_QUOTA_MB:-2048}"
-      PHOTOALBUM_MODEL: "${PHOTOALBUM_MODEL:-Claude Sonnet 5.5 by Anthropic}"
+      PHOTOALBUM_MODEL: "${PHOTOALBUM_MODEL:-Claude Sonnet 5.5}"
     depends_on:
       mariadb:
         condition: service_healthy
