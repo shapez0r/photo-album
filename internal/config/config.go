@@ -19,7 +19,7 @@ const DefaultAddr = ":8092"
 
 // DefaultModel is the model name shown on the album home screen when
 // PHOTOALBUM_MODEL is not set.
-const DefaultModel = "Claude Opus 5.5"
+const DefaultModel = "Claude Sonnet 5.5"
 
 type Config struct {
 	// Addr is the listen address, e.g. ":8092" (all interfaces, reachable from the LAN).
