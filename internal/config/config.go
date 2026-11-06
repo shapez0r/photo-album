@@ -11,10 +11,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // DefaultAddr is the listen address when PHOTOALBUM_ADDR is not set.
 const DefaultAddr = ":8092"
+
+// DefaultModel is the model name shown on the album home screen when
+// PHOTOALBUM_MODEL is not set.
+const DefaultModel = "Claude Opus 5.5"
 
 type Config struct {
 	// Addr is the listen address, e.g. ":8092" (all interfaces, reachable from the LAN).
@@ -45,6 +50,8 @@ type Config struct {
 	MaxFileBytes int64
 	// QuotaBytes is the total size of the album per user (0 = unlimited).
 	QuotaBytes int64
+	// Model is the model name shown on the album home screen.
+	Model string
 }
 
 func Load() (*Config, error) {
@@ -54,6 +61,7 @@ func Load() (*Config, error) {
 		DBDriver:    strings.ToLower(env("PHOTOALBUM_DB_DRIVER", "sqlite")),
 		CacheURL:    env("PHOTOALBUM_CACHE_URL", "memory"),
 		ProxyHeader: env("PHOTOALBUM_PROXY_HEADER", ""),
+		Model:       env("PHOTOALBUM_MODEL", DefaultModel),
 	}
 	var err error
 	if c.SessionTTL, err = time.ParseDuration(env("PHOTOALBUM_SESSION_TTL", "720h")); err != nil {
@@ -110,6 +118,9 @@ func Load() (*Config, error) {
 		}
 	default:
 		return nil, fmt.Errorf("PHOTOALBUM_DB_DRIVER: unsupported driver %q (use sqlite or mariadb)", c.DBDriver)
+	}
+	if utf8.RuneCountInString(c.Model) > 100 {
+		return nil, fmt.Errorf("PHOTOALBUM_MODEL must be at most 100 characters")
 	}
 	if c.SessionTTL < time.Hour {
 		return nil, fmt.Errorf("PHOTOALBUM_SESSION_TTL must be at least 1h")

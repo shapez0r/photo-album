@@ -271,5 +271,6 @@ func (s *Server) getConfig(c *fiber.Ctx) error {
 		"version":        s.version,
 		"max_file_bytes": s.cfg.MaxFileBytes,
 		"quota_bytes":    s.cfg.QuotaBytes,
+		"model":          s.cfg.Model,
 	})
 }

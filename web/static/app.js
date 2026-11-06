@@ -11,7 +11,7 @@
 
   const state = {
     user: null, signup: false, authMode: "login",
-    photos: [], known: new Set(), quota: 0, used: 0, maxFile: 0,
+    photos: [], known: new Set(), quota: 0, used: 0, maxFile: 0, model: "",
     stream: null, facing: "environment", shot: null, viewing: null,
     pollTimer: 0, liveTimer: 0, liveIndex: 0,
   };
@@ -145,6 +145,8 @@
     $("storage").textContent = state.quota > 0
       ? t("album.storage", { used: fmtBytes(state.used), quota: fmtBytes(state.quota) })
       : fmtBytes(state.used);
+    $("model").hidden = !state.model;
+    $("model").textContent = state.model ? t("album.model", { model: state.model }) : "";
   }
 
   function pinFor(p, fresh) {
@@ -490,6 +492,7 @@
     try {
       const cfg = await api("GET", "/config");
       state.signup = !!cfg.signup_enabled;
+      state.model = typeof cfg.model === "string" ? cfg.model : "";
     } catch { /* keep defaults */ }
     try {
       state.user = await api("GET", "/me");

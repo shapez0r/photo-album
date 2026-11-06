@@ -95,7 +95,7 @@ All endpoints are JSON under `/api` unless noted. Errors are `{"error": "message
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/config` | `{signup_enabled, version, max_file_bytes, quota_bytes}` |
+| GET | `/config` | `{signup_enabled, version, max_file_bytes, quota_bytes, model}` |
 | POST | `/auth/signup` | `{email, password, password_confirm, display_name}` → user + session cookie |
 | POST | `/auth/login` | `{email, password}` → user + session cookie |
 | POST | `/auth/logout` | |
